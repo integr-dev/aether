@@ -13,11 +13,17 @@
 
 package net.integr.aether.server
 
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import net.integr.aether.common.bridge.AetherBridge
+import net.integr.aether.common.connection.Connection
+import net.integr.aether.common.packet.security.AesTool
 
-class SuspendedAetherServer private constructor(port: Int) : AetherServer(port) {
+class SuspendedAetherServer private constructor(port: Int, aesHandler: AesTool.AesHandler? = null) : AetherServer(port, aesHandler) {
+    private val serverCoroutineScope = CoroutineScope(Dispatchers.IO + Job())
+
     companion object {
         suspend fun start(port: Int, hooks: SuspendedAetherServer.() -> Unit): SuspendedAetherServer {
             val server = SuspendedAetherServer(port)
@@ -33,33 +39,58 @@ class SuspendedAetherServer private constructor(port: Int) : AetherServer(port) 
             server.hooks()
             return server
         }
+
+        suspend fun startEncrypted(port: Int, aesHandler: AesTool.AesHandler, hooks: SuspendedAetherServer.() -> Unit): SuspendedAetherServer {
+            val server = SuspendedAetherServer(port, aesHandler)
+
+            server.hooks()
+            server.startup()
+            return server
+        }
+
+        fun getStartableEncrypted(port: Int, aesHandler: AesTool.AesHandler, hooks: SuspendedAetherServer.() -> Unit): SuspendedAetherServer {
+            val server = SuspendedAetherServer(port, aesHandler)
+
+            server.hooks()
+            return server
+        }
     }
 
     suspend fun startup() {
-        coroutineScope {
+        val job = serverCoroutineScope.launch {
             try {
                 while (!serverSocket.isClosed) {
-                    val connection = serverSocket.accept()
-                    val bridge = AetherBridge.fromSocket(connection)
-                    internalClients.add(bridge)
-                    onClientConnected.forEach { it.invoke(bridge) }
+                    val socketConnection = serverSocket.accept()
+                    val connection = Connection.fromSocket(socketConnection)
+
+                    internalClients.add(connection)
+                    onClientConnected.forEach { it.invoke(connection) }
 
                     launch {
-                        handleClientConnection(bridge)
-
-                        onClientDisconnected.forEach { it.invoke(bridge) }
-                        bridge.close()
+                        try {
+                            handleClientConnection(connection)
+                        } finally {
+                            onClientDisconnected.forEach { it.invoke(connection) }
+                            connection.close()
+                        }
                     }
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Server socket closed or error occurred, assume shutdown
+                serverSocket.close()
+            } finally {
+                // Socket is closed, perform cleanup
                 serverSocket.close()
             }
         }
+
+        job.join()
     }
 
     override fun close() {
         onClose.forEach { it.invoke() }
+        internalClients.forEach { it.close() }
         serverSocket.close()
+        serverCoroutineScope.cancel()
     }
 }

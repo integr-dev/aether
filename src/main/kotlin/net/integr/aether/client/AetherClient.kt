@@ -14,40 +14,46 @@
 package net.integr.aether.client
 
 
-import net.integr.aether.common.bridge.AetherBridge
+import net.integr.aether.common.connection.Connection
 import net.integr.aether.common.packet.Packet
+import net.integr.aether.common.packet.security.AesTool
 import java.net.Socket
 
-abstract class AetherClient protected constructor(val address: String, val port: Int) : AutoCloseable {
+abstract class AetherClient protected constructor(address: String, port: Int, aesHandler: AesTool.AesHandler? = null) : AutoCloseable {
     protected val clientSocket = Socket(address, port)
-
-    protected val isActiveConnection: Boolean = true
 
     val onServerConnected = mutableListOf<() -> Unit>()
     val onServerDisconnected = mutableListOf<() -> Unit>()
+    val onServerSendInvalid = mutableListOf<(connection: Connection, message: String) -> Unit>()
 
     val onClose = mutableListOf<() -> Unit>()
 
-    val onPacketReceived = mutableListOf<(bridge: AetherBridge) -> Unit>()
+    val onPacketReceived = mutableListOf<(connection: Connection, objectId: Int, buffer: ByteArray) -> Unit>()
 
-    val bridge = AetherBridge.fromSocket(clientSocket)
+    val connection = Connection.fromSocket(clientSocket)
 
     protected fun handleServerConnection() {
-        while (bridge.isConnected() && isActiveConnection) {
-            try {
-                onPacketReceived.forEach { it.invoke(bridge) }
-            } catch (e: Exception) {
-                break
+        try {
+            while (connection.isConnected()) {
+                val (objectId, buffer) = connection.readPacketBuffer()
+
+                onPacketReceived.forEach { it.invoke(connection, objectId, buffer) }
             }
+        } catch (e: IllegalArgumentException) {
+            onServerSendInvalid.forEach { it.invoke(connection, e.message ?: "Unknown error.") }
+            connection.close()
+        } catch (_: Exception) {
+            connection.close()
         }
+
     }
     inline fun <reified T> send(data: T, objectId: Int = 0) {
         val wrappingPacket = Packet(data)
-        bridge.writePacket(wrappingPacket, objectId)
+        connection.writePacket(wrappingPacket, objectId)
     }
 
     fun allPacketsProcessed(): Boolean {
-        return bridge.allPacketsProcessed()
+        return connection.allPacketsProcessed()
     }
 
     companion object {

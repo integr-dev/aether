@@ -13,37 +13,45 @@
 
 package net.integr.aether.server
 
-import net.integr.aether.common.bridge.AetherBridge
+import net.integr.aether.common.connection.Connection
 import net.integr.aether.common.packet.Packet
+import net.integr.aether.common.packet.security.AesTool
 import java.net.ServerSocket
+import java.util.concurrent.CopyOnWriteArrayList
 
-abstract class AetherServer protected constructor(val port: Int) : AutoCloseable {
+abstract class AetherServer protected constructor(port: Int, aesHandler: AesTool.AesHandler? = null) : AutoCloseable {
     protected val serverSocket = ServerSocket(port)
 
-    protected val internalClients = mutableListOf<AetherBridge>()
+    protected val internalClients = CopyOnWriteArrayList<Connection>()
 
-    val clients: List<AetherBridge>
+    val clients: List<Connection>
         get() = internalClients.toList()
 
-
-    val onClientConnected = mutableListOf<(bridge: AetherBridge) -> Unit>()
-    val onClientDisconnected = mutableListOf<(bridge: AetherBridge) -> Unit>()
+    val onClientConnected = mutableListOf<(connection: Connection) -> Unit>()
+    val onClientDisconnected = mutableListOf<(connection: Connection) -> Unit>()
+    val onClientSendInvalid = mutableListOf<(connection: Connection, message: String) -> Unit>()
 
     val onClose = mutableListOf<() -> Unit>()
 
-    val onPacketReceived = mutableListOf<(bridge: AetherBridge) -> Unit>()
+    val onPacketReceived = mutableListOf<(connection: Connection, objectId: Int, buffer: ByteArray) -> Unit>()
 
-    protected fun handleClientConnection(bridge: AetherBridge) {
-        while (bridge.isConnected()) {
+    protected fun handleClientConnection(connection: Connection) {
+        while (connection.isConnected()) {
             try {
-                onPacketReceived.forEach { it.invoke(bridge) }
-            } catch (e: Exception) {
-                internalClients.remove(bridge)
+                val (objectId, buffer) = connection.readPacketBuffer()
+
+                onPacketReceived.forEach { it.invoke(connection, objectId, buffer) }
+            } catch (e: IllegalArgumentException) {
+                internalClients.remove(connection)
+                onClientSendInvalid.forEach { it.invoke(connection, e.message ?: "Unknown error.") }
+                break
+            } catch (_: Exception) {
+                internalClients.remove(connection)
                 break
             }
         }
 
-        internalClients.remove(bridge)
+        internalClients.remove(connection)
     }
 
     inline fun <reified T> broadcast(data: T, objectId: Int = 0) {

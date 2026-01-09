@@ -17,13 +17,23 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import net.integr.aether.common.packet.security.AesTool
 
-class SuspendedAetherClient private constructor(address: String, port: Int) : AetherClient(address, port) {
+class SuspendedAetherClient private constructor(address: String, port: Int, aesHandler: AesTool.AesHandler? = null) : AetherClient(address, port, aesHandler) {
     private val clientCoroutineScope = CoroutineScope(Dispatchers.IO + Job())
 
     companion object {
         fun start(address: String, port: Int, hooks: AetherClient.() -> Unit): SuspendedAetherClient {
             val client = SuspendedAetherClient(address, port)
+
+            client.hooks()
+            client.startup()
+
+            return client
+        }
+
+        fun startEncrypted(address: String, port: Int, aesHandler: AesTool.AesHandler, hooks: AetherClient.() -> Unit): SuspendedAetherClient {
+            val client = SuspendedAetherClient(address, port, aesHandler)
 
             client.hooks()
             client.startup()
@@ -42,7 +52,15 @@ class SuspendedAetherClient private constructor(address: String, port: Int) : Ae
 
     override fun close() {
         onClose.forEach { it.invoke() }
-        bridge.close()
+        connection.close()
         clientCoroutineScope.coroutineContext[Job]?.cancel()
+    }
+
+    fun getJob(): Job {
+        return clientCoroutineScope.coroutineContext[Job]!!
+    }
+
+    suspend fun waitUntilClosed() {
+        getJob().join()
     }
 }

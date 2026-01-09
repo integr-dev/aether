@@ -11,15 +11,15 @@
  * limitations under the License.
  */
 
-package net.integr.aether.common.eon.auto
+package net.integr.aether.common.codec.serialization
 
 import kotlinx.serialization.Serializable
-import net.integr.aether.common.eon.EonReader
-import net.integr.aether.common.eon.EonWriter
+import net.integr.aether.common.codec.CodecReader
+import net.integr.aether.common.codec.CodecWriter
 import org.junit.jupiter.api.Assertions
 import kotlin.test.Test
 
-class EonTest {
+class CodecTest {
     @Test
     fun `Encoded by bytes should equal to the same data`() {
         val testData = TestData(
@@ -29,13 +29,13 @@ class EonTest {
             items = listOf("one", "two", "three")
         )
 
-        val bytes = Eon.encode(testData)
+        val bytes = Codec.encode(testData)
 
-        val eonReader = EonReader.begin(bytes)
-        val number = eonReader.int()
-        val text = eonReader.string()
-        val flag = eonReader.boolean()
-        val items = eonReader.list { string() }
+        val codecReader = CodecReader.begin(bytes)
+        val number = codecReader.int()
+        val text = codecReader.string()
+        val flag = codecReader.boolean()
+        val items = codecReader.list { string() }
 
         Assertions.assertEquals(testData.number, number)
         Assertions.assertEquals(testData.text, text)
@@ -45,7 +45,7 @@ class EonTest {
 
     @Test
     fun `Decoded from bytes should equal to the same data`() {
-        val eonWriter = EonWriter.begin()
+        val codecWriter = CodecWriter.begin()
             .int(123)
             .string("Hello, World!")
             .boolean(true)
@@ -53,9 +53,9 @@ class EonTest {
                 string(item)
             }
 
-        val bytes = eonWriter.bake()
+        val bytes = codecWriter.bake()
 
-        val decodedData = Eon.decode<TestData>(bytes)
+        val decodedData = Codec.decode<TestData>(bytes)
 
         Assertions.assertEquals(123, decodedData.number)
         Assertions.assertEquals("Hello, World!", decodedData.text)
@@ -82,8 +82,8 @@ class EonTest {
             )
         )
 
-        val encodedBytes = Eon.encode(originalData)
-        val decodedData = Eon.decode<AdvancedTestData>(encodedBytes)
+        val encodedBytes = Codec.encode(originalData)
+        val decodedData = Codec.decode<AdvancedTestData>(encodedBytes)
 
         Assertions.assertEquals(originalData.id, decodedData.id)
         Assertions.assertEquals(originalData.name, decodedData.name)

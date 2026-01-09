@@ -11,22 +11,23 @@
  * limitations under the License.
  */
 
-package net.integr.aether.common.bridge
+package net.integr.aether.common.connection
 
 
-import net.integr.aether.common.eon.auto.Eon
+import net.integr.aether.common.codec.serialization.Codec
 import net.integr.aether.common.packet.Packet
+import net.integr.aether.common.packet.security.HashTool
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.Socket
 
-class AetherBridge private constructor(val socket: Socket) : AutoCloseable {
+class Connection private constructor(val socket: Socket) : AutoCloseable {
     val outputStream: OutputStream = socket.getOutputStream()
     val inputStream: InputStream = socket.getInputStream()
 
     companion object {
-        fun fromSocket(socket: Socket): AetherBridge {
-            return AetherBridge(socket)
+        fun fromSocket(socket: Socket): Connection {
+            return Connection(socket)
         }
     }
 
@@ -40,23 +41,21 @@ class AetherBridge private constructor(val socket: Socket) : AutoCloseable {
     }
 
     fun readPacketBuffer(): Pair<Int, ByteArray> {
-        val length = Eon.readIntFromStream(inputStream)
-        val objectId = Eon.readIntFromStream(inputStream)
-        val packetData = read(length - Int.SIZE_BYTES - Int.SIZE_BYTES) // Subtract size of length int
+        val length = Codec.readIntFromStream(inputStream)
+        val hash = Codec.readIntFromStream(inputStream)
+        val objectId = Codec.readIntFromStream(inputStream)
+        val packetData = read(length - Int.SIZE_BYTES - Int.SIZE_BYTES - Int.SIZE_BYTES)
+        val computedHash = HashTool.md5FromObj(packetData)
+        if (hash != computedHash) throw IllegalArgumentException("Data integrity check failed: expected hash $hash but got $computedHash")
         return objectId to packetData
     }
 
-    inline fun <reified T> readPacketWithPayloadType(): Packet<T> {
-        val (_, buffer) = readPacketBuffer()
-        return Eon.decodeNoMetadata<Packet<T>>(buffer)
-    }
-
     inline fun <reified T> decodeWithPayloadType(buffer: ByteArray): Packet<T> {
-        return Eon.decodeNoMetadata<Packet<T>>(buffer)
+        return Codec.decodeNoMetadata<Packet<T>>(buffer)
     }
 
     inline fun <reified T> writePacket(packet: Packet<T>, objectId: Int = 0) {
-        val buffer = Eon.encode(packet, objectId)
+        val buffer = Codec.encode(packet, objectId)
         write(buffer)
     }
 

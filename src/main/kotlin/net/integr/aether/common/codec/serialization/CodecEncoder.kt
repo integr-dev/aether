@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package net.integr.aether.common.eon.auto
+package net.integr.aether.common.codec.serialization
 
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerializationStrategy
@@ -19,9 +19,9 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.CompositeEncoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.modules.EmptySerializersModule
-import net.integr.aether.common.eon.EonWriter
+import net.integr.aether.common.codec.CodecWriter
 
-class EonEncoder(private val codec: EonWriter) : Encoder, CompositeEncoder {
+class CodecEncoder(private val codecWriter: CodecWriter) : Encoder, CompositeEncoder {
     override val serializersModule = EmptySerializersModule()
 
     override fun beginStructure(descriptor: SerialDescriptor): CompositeEncoder = this
@@ -33,44 +33,44 @@ class EonEncoder(private val codec: EonWriter) : Encoder, CompositeEncoder {
     }
 
     override fun encodeInt(value: Int) {
-        codec.int(value)
+        codecWriter.int(value)
     }
 
     override fun encodeLong(value: Long) {
-        codec.long(value)
+        codecWriter.long(value)
     }
 
     override fun encodeFloat(value: Float) {
-        codec.float(value)
+        codecWriter.float(value)
     }
 
     override fun encodeString(value: String) {
-        codec.string(value)
+        codecWriter.string(value)
     }
 
 
     override fun encodeBoolean(value: Boolean) {
-        codec.boolean(value)
+        codecWriter.boolean(value)
     }
 
     override fun encodeByte(value: Byte) {
-        codec.byte(value)
+        codecWriter.byte(value)
     }
 
     override fun encodeShort(value: Short) {
-        codec.short(value)
+        codecWriter.short(value)
     }
 
     override fun encodeChar(value: Char) {
-        codec.char(value)
+        codecWriter.char(value)
     }
 
     override fun encodeDouble(value: Double) {
-        codec.double(value)
+        codecWriter.double(value)
     }
 
     override fun encodeEnum(enumDescriptor: SerialDescriptor, index: Int) {
-        codec.int(index)
+        codecWriter.int(index)
     }
 
     override fun encodeInline(descriptor: SerialDescriptor): Encoder {
@@ -87,39 +87,39 @@ class EonEncoder(private val codec: EonWriter) : Encoder, CompositeEncoder {
     }
 
     override fun encodeBooleanElement(descriptor: SerialDescriptor, index: Int, value: Boolean) {
-        codec.boolean(value)
+        codecWriter.boolean(value)
     }
 
     override fun encodeByteElement(descriptor: SerialDescriptor, index: Int, value: Byte) {
-        codec.byte(value)
+        codecWriter.byte(value)
     }
 
     override fun encodeShortElement(descriptor: SerialDescriptor, index: Int, value: Short) {
-        codec.short(value)
+        codecWriter.short(value)
     }
 
     override fun encodeCharElement(descriptor: SerialDescriptor, index: Int, value: Char) {
-        codec.char(value)
+        codecWriter.char(value)
     }
 
     override fun encodeIntElement(descriptor: SerialDescriptor, index: Int, value: Int) {
-        codec.int(value)
+        codecWriter.int(value)
     }
 
     override fun encodeLongElement(descriptor: SerialDescriptor, index: Int, value: Long) {
-        codec.long(value)
+        codecWriter.long(value)
     }
 
     override fun encodeFloatElement(descriptor: SerialDescriptor, index: Int, value: Float) {
-        codec.float(value)
+        codecWriter.float(value)
     }
 
     override fun encodeDoubleElement(descriptor: SerialDescriptor, index: Int, value: Double) {
-        codec.double(value)
+        codecWriter.double(value)
     }
 
     override fun encodeStringElement(descriptor: SerialDescriptor, index: Int, value: String) {
-        codec.string(value)
+        codecWriter.string(value)
     }
 
     override fun encodeInlineElement(descriptor: SerialDescriptor, index: Int): Encoder {
@@ -131,7 +131,7 @@ class EonEncoder(private val codec: EonWriter) : Encoder, CompositeEncoder {
     }
 
     override fun beginCollection(descriptor: SerialDescriptor, collectionSize: Int): CompositeEncoder {
-        codec.int(collectionSize)
+        codecWriter.int(collectionSize)
         return this
     }
 }

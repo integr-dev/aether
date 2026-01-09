@@ -16,26 +16,28 @@ package net.integr.aether.example
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.Serializable
 import net.integr.aether.client.AetherClient
+import net.integr.aether.common.packet.security.AesTool
 import net.integr.aether.common.registry.ObjectRegistry
 import net.integr.aether.server.AetherServer
 
 fun main() {
+    val encryptor = AesTool.generateHandler()
+
     runBlocking {
         launch(Dispatchers.IO) {
             println("[SERVER] Starting Aether Server on port 9999...")
 
-            AetherServer.suspended.start(9999) {
-                val serverObjectRegistry = ObjectRegistry()
+            AetherServer.suspended.startEncrypted(9999, encryptor) {
+                val registry = ObjectRegistry()
 
-                serverObjectRegistry.useHandler<TestObject1> { packet, id ->
+                registry.useHandler<TestObject1> { packet, id ->
                     println("[SERVER] Received TestObject1 with message: ${packet.payload.message} at ${packet.timestamp}")
 
                     broadcast(packet.payload, id)
                 }
 
-                serverObjectRegistry.useHandler<TestObject2> { packet, id ->
+                registry.useHandler<TestObject2> { packet, id ->
                     println("[SERVER] Received TestObject2 with number: ${packet.payload.number} at ${packet.timestamp}")
                 }
 
@@ -48,6 +50,10 @@ fun main() {
                     println("[SERVER] Client disconnected: ${connection.socket.inetAddress.hostAddress}")
                 }
 
+                onClientSendInvalid += { connection, message ->
+                    println("[SERVER] Client sent invalid data: $message")
+                }
+
                 onClose += {
                     println("[SERVER] Server is closing.")
                 }
@@ -56,7 +62,7 @@ fun main() {
 
                     println("[SERVER] Packet received with object ID: $objectId")
 
-                    serverObjectRegistry.handle(objectId, buffer)
+                    registry.handle(objectId, buffer)
                 }
             }
         }
@@ -64,7 +70,7 @@ fun main() {
         launch(Dispatchers.IO) { // Example of a client for one use
             println("[CLIENT 1] Starting Aether Client and connecting to server...")
 
-            val client = AetherClient.suspended.start("localhost", 9999) {
+            val client = AetherClient.suspended.startEncrypted("localhost", 9999, encryptor) {
                 onClose += {
                     println("[CLIENT 1] Client is closing.")
                 }
@@ -77,29 +83,5 @@ fun main() {
                 client.send(TestObject2(42), TEST_OBJECT_2_ID)
             }
         }
-
-        launch(Dispatchers.IO) { // Example of a client listening for incoming packets
-            println("[CLIENT 2] Starting Aether Client and connecting to server...")
-
-            AetherClient.suspended.start("localhost", 9999) {
-                onClose += {
-                    println("[CLIENT 2] Client is closing.")
-                }
-
-                onPacketReceived += { connection, objectId, buffer ->
-
-                    println("[CLIENT 2] Packet received with object ID: $objectId")
-                }
-            }
-        }
     }
 }
-
-const val TEST_OBJECT_1_ID = 0
-const val TEST_OBJECT_2_ID = 1
-
-@Serializable
-class TestObject1(val message: String)
-
-@Serializable
-class TestObject2(val number: Int)

@@ -11,15 +11,15 @@
  * limitations under the License.
  */
 
-package net.integr.aether.common.eon
+package net.integr.aether.common.codec
 
 import org.junit.jupiter.api.Assertions
 import kotlin.test.Test
 
-class EonBaseTest {
+class CodecBaseTest {
     @Test
     fun `Encoded and decoded by bytes should equal to the same data`() {
-        val eonWriter = EonWriter.begin()
+        val codecWriter = CodecWriter.begin()
             .int(42)
             .string("Hello")
             .enum(Color.GREEN)
@@ -30,14 +30,14 @@ class EonBaseTest {
                 int(it)
             }
 
-        val bytes = eonWriter.bake()
-        val eonReader = EonReader.begin(bytes)
+        val bytes = codecWriter.bake()
+        val codecReader = CodecReader.begin(bytes)
 
-        val int = eonReader.int()
-        val string = eonReader.string()
-        val enum = eonReader.enum<Color>()
-        val stringList = eonReader.list { string() }
-        val intList = eonReader.list { int() }
+        val int = codecReader.int()
+        val string = codecReader.string()
+        val enum = codecReader.enum<Color>()
+        val stringList = codecReader.list { string() }
+        val intList = codecReader.list { int() }
 
         Assertions.assertEquals(42, int)
         Assertions.assertEquals("Hello", string)
@@ -48,5 +48,5 @@ class EonBaseTest {
 }
 
 enum class Color {
-    RED, GREEN, BLUE
+    GREEN
 }

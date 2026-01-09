@@ -11,72 +11,73 @@
  * limitations under the License.
  */
 
-package net.integr.aether.common.eon
+package net.integr.aether.common.codec
 
+import net.integr.aether.common.packet.security.HashTool
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 
-class EonWriter private constructor() {
+class CodecWriter private constructor() {
     companion object {
-        fun begin(objectId: Int = 0): EonWriter {
-            return EonWriter().int(0).int(objectId) // Placeholder for size
+        fun begin(objectId: Int = 0): CodecWriter {
+            return CodecWriter().int(0).int(0).int(objectId) // Placeholder for size
         }
     }
 
     val outStream = ByteArrayOutputStream()
     val data = DataOutputStream(outStream)
 
-    fun int(value: Int): EonWriter {
+    fun int(value: Int): CodecWriter {
         data.writeInt(value)
         return this
     }
 
-    fun float(value: Float): EonWriter {
+    fun float(value: Float): CodecWriter {
         data.writeFloat(value)
         return this
     }
 
-    fun double(value: Double): EonWriter {
+    fun double(value: Double): CodecWriter {
         data.writeDouble(value)
         return this
     }
 
-    fun long(value: Long): EonWriter {
+    fun long(value: Long): CodecWriter {
         data.writeLong(value)
         return this
     }
 
-    fun short(value: Short): EonWriter {
+    fun short(value: Short): CodecWriter {
         data.writeShort(value.toInt())
         return this
     }
 
-    fun byte(value: Byte): EonWriter {
+    fun byte(value: Byte): CodecWriter {
         data.writeByte(value.toInt())
         return this
     }
 
-    fun boolean(value: Boolean): EonWriter {
+    fun boolean(value: Boolean): CodecWriter {
         data.writeBoolean(value)
         return this
     }
 
-    fun char(value: Char): EonWriter {
+    fun char(value: Char): CodecWriter {
         data.writeChar(value.code)
         return this
     }
 
-    fun string(value: String): EonWriter {
+    fun string(value: String): CodecWriter {
         data.writeUTF(value)
         return this
     }
 
-    fun < E : Enum<E>> enum(value: E): EonWriter {
+    fun < E : Enum<E>> enum(value: E): CodecWriter {
         data.writeInt(value.ordinal)
         return this
     }
 
-    fun <T> list(elements: List<T>, codecWriter: EonWriter.(element: T) -> Unit): EonWriter {
+    fun <T> list(elements: List<T>, codecWriter: CodecWriter.(element: T) -> Unit): CodecWriter {
         data.writeInt(elements.size)
 
         for (element in elements) {
@@ -99,6 +100,15 @@ class EonWriter private constructor() {
         byteArr[1] = ((size shr 16) and 0xFF).toByte()
         byteArr[2] = ((size shr 8) and 0xFF).toByte()
         byteArr[3] = (size and 0xFF).toByte()
+
+        // Write the hash (everything after objectId and without objectId) after the size
+        val toHash = byteArr.copyOfRange(12, byteArr.size)
+        val hash = HashTool.md5FromObj(toHash)
+
+        byteArr[4] = ((hash shr 24) and 0xFF).toByte()
+        byteArr[5] = ((hash shr 16) and 0xFF).toByte()
+        byteArr[6] = ((hash shr 8) and 0xFF).toByte()
+        byteArr[7] = (hash and 0xFF).toByte()
 
         return byteArr
     }

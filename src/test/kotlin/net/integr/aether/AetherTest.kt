@@ -14,6 +14,7 @@
 package net.integr.aether
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
@@ -26,7 +27,6 @@ import kotlin.random.Random
 class AetherTest {
     @Test
     fun `Test Suspended Clientbound`() {
-
         val server = AetherServer.suspended.getStartable(7779) {}
 
         runBlocking {

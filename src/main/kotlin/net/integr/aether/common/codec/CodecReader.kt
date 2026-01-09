@@ -11,19 +11,21 @@
  * limitations under the License.
  */
 
-package net.integr.aether.common.eon
+package net.integr.aether.common.codec
 
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
 
-class EonReader private constructor(byteArray: ByteArray) {
+class CodecReader private constructor(byteArray: ByteArray) {
     companion object {
-        fun begin(byteArray: ByteArray, dataContainsMeta: Boolean = true): EonReader {
-            val codec = EonReader(byteArray)
+        fun begin(byteArray: ByteArray, dataContainsMeta: Boolean = true): CodecReader {
+            val codec = CodecReader(byteArray)
             if (dataContainsMeta) {
                 codec.int()
                 codec.int()
+                codec.int()
             } // Read and discard size placeholder
+
             return codec
         }
     }
@@ -73,7 +75,7 @@ class EonReader private constructor(byteArray: ByteArray) {
         return enumConstants[ordinal]
     }
 
-    fun <T> list(codecReader: EonReader.() -> T): List<T> {
+    fun <T> list(codecReader: CodecReader.() -> T): List<T> {
         val size = data.readInt()
         val listItems = mutableListOf<T>()
 

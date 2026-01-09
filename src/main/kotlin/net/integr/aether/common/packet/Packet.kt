@@ -16,4 +16,5 @@ package net.integr.aether.common.packet
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class Packet<T>(@Serializable val payload: T, val timestamp: Long = System.currentTimeMillis())
+data class Packet<T>(@Serializable val payload: T, val timestamp: Long = System.currentTimeMillis()) {
+}

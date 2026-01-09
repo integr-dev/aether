@@ -11,35 +11,38 @@
  * limitations under the License.
  */
 
-package net.integr.aether.common.eon.auto
+package net.integr.aether.common.codec.serialization
 
 import kotlinx.serialization.DeserializationStrategy
+import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.SerializationStrategy
 import kotlinx.serialization.serializer
-import net.integr.aether.common.eon.EonReader
-import net.integr.aether.common.eon.EonWriter
+import net.integr.aether.common.codec.CodecReader
+import net.integr.aether.common.codec.CodecWriter
 import java.io.InputStream
+import kotlin.reflect.KClass
+import kotlin.reflect.KType
 
-class Eon {
+class Codec {
 
     fun <T> encodeToByteArray(serializer: SerializationStrategy<T>, value: T, objectId: Int = 0): ByteArray {
-        val writer = EonWriter.begin(objectId)
-        serializer.serialize(EonEncoder(writer), value)
+        val writer = CodecWriter.begin(objectId)
+        serializer.serialize(CodecEncoder(writer), value)
         return writer.bake()
     }
 
     fun <T> decodeFromByteArray(deserializer: DeserializationStrategy<T>, bytes: ByteArray): T {
-        val reader = EonReader.begin(bytes)
-        return deserializer.deserialize(EonDecoder(reader))
+        val reader = CodecReader.begin(bytes)
+        return deserializer.deserialize(CodecDecoder(reader))
     }
 
     fun <T> decodeFromByteArrayNoMetadata(deserializer: DeserializationStrategy<T>, bytes: ByteArray): T {
-        val reader = EonReader.begin(bytes, false)
-        return deserializer.deserialize(EonDecoder(reader))
+        val reader = CodecReader.begin(bytes, false)
+        return deserializer.deserialize(CodecDecoder(reader))
     }
 
     companion object {
-        val instance = Eon()
+        val instance = Codec()
 
         inline fun <reified T> encode(value: T, objectId: Int = 0): ByteArray {
             return instance.encodeToByteArray(serializer<T>(), value, objectId)
@@ -51,6 +54,11 @@ class Eon {
 
         inline fun <reified T> decodeNoMetadata(bytes: ByteArray): T {
             return instance.decodeFromByteArrayNoMetadata(serializer<T>(), bytes)
+        }
+
+        fun <T : Any> decodeNoMetadata(bytes: ByteArray, type: KType): T {
+            @Suppress("UNCHECKED_CAST")
+            return instance.decodeFromByteArrayNoMetadata(serializer(type), bytes) as T
         }
 
         fun readIntFromStream(stream: InputStream): Int {
